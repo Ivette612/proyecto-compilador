@@ -42,20 +42,40 @@ public class NfaSimulator {
      * @return True if the input is accepted by the NFA, false otherwise.
      */
     public boolean simulate(NFA nfa, String input) {
-        // TODO: Implement simulate
-        /*
-         Pseudocode:
-         1. Initialize currentStates with epsilon-closure of NFA start state
-         2. For each character in input:
-              - For each state in currentStates:
-                  - For each transition:
-                      - If transition symbol matches character:
-                          - Add epsilon-closure of destination state to nextStates
-              - Set currentStates to nextStates
-         3. After input, if any state in currentStates is final, return true
-         4. Otherwise, return false
-        */
-        throw new UnsupportedOperationException("Not implemented");
+        if (nfa == null) throw new IllegalArgumentException("NFA cannot be null");
+        if (input == null) input = "";
+
+        // 1) ε-closure del estado inicial
+        java.util.Set<State> current = new java.util.HashSet<>();
+        addEpsilonClosure(nfa.startState, current);
+
+        // 2) Consumir cada carácter
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+
+            java.util.Set<State> next = new java.util.HashSet<>();
+            for (State s : current) {
+                if (s.transitions == null) continue;
+                for (com.compiler.lexer.nfa.Transition t : s.transitions) {
+                    // Transición con símbolo c
+                    if (t.symbol != null && t.symbol == c) {
+                        // Agregar ε-closure del destino
+                        addEpsilonClosure(t.toState, next);
+                    }
+                }
+            }
+            // Avanzar el conjunto actual
+            current = next;
+
+            // Si no hay estados alcanzables, rechazo temprano
+            if (current.isEmpty()) return false;
+        }
+
+        // 3) Aceptación si algún estado actual es final
+        for (State s : current) {
+            if (s.isFinal) return true;
+        }
+        return false;
     }
 
     /**
@@ -65,15 +85,14 @@ public class NfaSimulator {
      * @param closureSet The set to accumulate reachable states.
      */
     private void addEpsilonClosure(State start, Set<State> closureSet) {
-        // TODO: Implement addEpsilonClosure
-        /*
-         Pseudocode:
-         If start not in closureSet:
-             - Add start to closureSet
-             - For each transition in start:
-                 - If transition symbol is null:
-                     - Recursively add epsilon-closure of destination state
-        */
-        throw new UnsupportedOperationException("Not implemented");
+        // Si ya lo visitamos, no repetir
+        if (!closureSet.add(start)) return;
+
+        if (start.transitions == null) return;
+        for (com.compiler.lexer.nfa.Transition t : start.transitions) {
+            if (t.symbol == null) { // ε-transición
+                addEpsilonClosure(t.toState, closureSet);
+            }
+        }
     }
 }

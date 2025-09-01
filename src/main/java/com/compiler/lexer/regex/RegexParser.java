@@ -41,9 +41,19 @@ public class RegexParser {
      * @return The constructed NFA.
      */
     public NFA parse(String infixRegex) {
-    // TODO: Implement parse
-    // Pseudocode: Convert infix to postfix, then build NFA from postfix
-    throw new UnsupportedOperationException("Not implemented");
+        if (infixRegex == null) {
+            throw new IllegalArgumentException("regex cannot be null");
+        }
+        String postfix = ShuntingYard.toPostfix(infixRegex);
+        if (postfix.isEmpty()) {
+            // ε-NFA (opcional): si prefieres lanzar error para regex vacía, cámbialo.
+            com.compiler.lexer.nfa.State s = new com.compiler.lexer.nfa.State();
+            com.compiler.lexer.nfa.State f = new com.compiler.lexer.nfa.State();
+            s.transitions.add(new com.compiler.lexer.nfa.Transition(null, f)); // ε
+            f.isFinal = true;
+            return new NFA(s, f);
+        }
+        return buildNfaFromPostfix(postfix);
     }
 
     /**
@@ -52,10 +62,40 @@ public class RegexParser {
      * @param postfixRegex The regular expression in postfix notation.
      * @return The constructed NFA.
      */
-    private NFA buildNfaFromPostfix(String postfixRegex) {
-    // TODO: Implement buildNfaFromPostfix
-    // Pseudocode: For each char in postfix, handle operators and operands using a stack
-    throw new UnsupportedOperationException("Not implemented");
+   private NFA buildNfaFromPostfix(String postfixRegex) {
+        Stack<NFA> stack = new Stack<>();
+
+        for (int i = 0; i < postfixRegex.length(); i++) {
+            char t = postfixRegex.charAt(i);
+
+            switch (t) {
+                case '·': // concatenación
+                    handleConcatenation(stack);
+                    break;
+                case '|': // unión
+                    handleUnion(stack);
+                    break;
+                case '*': // Kleene
+                    handleKleeneStar(stack);
+                    break;
+                case '?': // opcional
+                    handleOptional(stack);
+                    break;
+                case '+': // una o más
+                    handlePlus(stack);
+                    break;
+                default:  // operando
+                    if (!isOperand(t)) {
+                        throw new IllegalArgumentException("Unknown token in postfix: " + t);
+                    }
+                    stack.push(createNfaForCharacter(t));
+            }
+        }
+
+        if (stack.size() != 1) {
+            throw new IllegalStateException("Malformed expression: stack has " + stack.size() + " NFAs");
+        }
+        return stack.pop();
     }
 
     /**
@@ -64,9 +104,23 @@ public class RegexParser {
      * @param stack The NFA stack.
      */
     private void handleOptional(Stack<NFA> stack) {
-    // TODO: Implement handleOptional
-    // Pseudocode: Pop NFA, create new start/end, add epsilon transitions for zero/one occurrence
-    throw new UnsupportedOperationException("Not implemented");
+        if (stack.isEmpty()) throw new IllegalStateException("Operator '?' with empty stack");
+        NFA A = stack.pop();
+
+        // Construcción de Thompson para A? = A | ε
+        com.compiler.lexer.nfa.State s = new com.compiler.lexer.nfa.State();
+        com.compiler.lexer.nfa.State f = new com.compiler.lexer.nfa.State();
+
+        // s -> ε -> A.start   y   s -> ε -> f
+        s.transitions.add(new com.compiler.lexer.nfa.Transition(null, A.startState));
+        s.transitions.add(new com.compiler.lexer.nfa.Transition(null, f));
+
+        // A.end deja de ser final; A.end -> ε -> f
+        A.endState.isFinal = false;
+        A.endState.transitions.add(new com.compiler.lexer.nfa.Transition(null, f));
+
+        f.isFinal = true;
+        stack.push(new NFA(s, f));
     }
 
     /**
@@ -75,9 +129,22 @@ public class RegexParser {
      * @param stack The NFA stack.
      */
     private void handlePlus(Stack<NFA> stack) {
-    // TODO: Implement handlePlus
-    // Pseudocode: Pop NFA, create new start/end, add transitions for one or more occurrence
-    throw new UnsupportedOperationException("Not implemented");
+        if (stack.isEmpty()) throw new IllegalStateException("Operator '+' with empty stack");
+        NFA A = stack.pop();
+
+        com.compiler.lexer.nfa.State s = new com.compiler.lexer.nfa.State();
+        com.compiler.lexer.nfa.State f = new com.compiler.lexer.nfa.State();
+
+        // s -> ε -> A.start
+        s.transitions.add(new com.compiler.lexer.nfa.Transition(null, A.startState));
+
+        // A.end deja de ser final; bucle a A.start y salida a f
+        A.endState.isFinal = false;
+        A.endState.transitions.add(new com.compiler.lexer.nfa.Transition(null, A.startState)); // bucle
+        A.endState.transitions.add(new com.compiler.lexer.nfa.Transition(null, f));            // salida
+
+        f.isFinal = true;
+        stack.push(new NFA(s, f));
     }
     
     /**
@@ -86,9 +153,7 @@ public class RegexParser {
      * @return The constructed NFA.
      */
     private NFA createNfaForCharacter(char c) {
-    // TODO: Implement createNfaForCharacter
-    // Pseudocode: Create start/end state, add transition for character
-    throw new UnsupportedOperationException("Not implemented");
+        return NFA.basic(c);
     }
 
     /**
@@ -97,10 +162,12 @@ public class RegexParser {
      * @param stack The NFA stack.
      */
     private void handleConcatenation(Stack<NFA> stack) {
-    // TODO: Implement handleConcatenation
-    // Pseudocode: Pop two NFAs, connect end of first to start of second
-    throw new UnsupportedOperationException("Not implemented");
+        if (stack.size() < 2) throw new IllegalStateException("Operator '·' needs two NFAs");
+        NFA B = stack.pop();
+        NFA A = stack.pop();
+        stack.push(NFA.concat(A, B));
     }
+
 
     /**
      * Handles the union operator (|).
@@ -108,9 +175,10 @@ public class RegexParser {
      * @param stack The NFA stack.
      */
     private void handleUnion(Stack<NFA> stack) {
-    // TODO: Implement handleUnion
-    // Pseudocode: Pop two NFAs, create new start/end, add epsilon transitions for union
-    throw new UnsupportedOperationException("Not implemented");
+        if (stack.size() < 2) throw new IllegalStateException("Operator '|' needs two NFAs");
+        NFA B = stack.pop();
+        NFA A = stack.pop();
+        stack.push(NFA.union(A, B));
     }
 
     /**
@@ -119,9 +187,9 @@ public class RegexParser {
      * @param stack The NFA stack.
      */
     private void handleKleeneStar(Stack<NFA> stack) {
-    // TODO: Implement handleKleeneStar
-    // Pseudocode: Pop NFA, create new start/end, add transitions for zero or more repetitions
-    throw new UnsupportedOperationException("Not implemented");
+        if (stack.isEmpty()) throw new IllegalStateException("Operator '*' with empty stack");
+        NFA A = stack.pop();
+        stack.push(NFA.kleene(A));
     }
 
     /**
@@ -130,8 +198,6 @@ public class RegexParser {
      * @return True if the character is an operand, false if it is an operator.
      */
     private boolean isOperand(char c) {
-    // TODO: Implement isOperand
-    // Pseudocode: Return true if c is not an operator
-    throw new UnsupportedOperationException("Not implemented");
+        return !(c == '|' || c == '·' || c == '*' || c == '+' || c == '?');
     }
 }
