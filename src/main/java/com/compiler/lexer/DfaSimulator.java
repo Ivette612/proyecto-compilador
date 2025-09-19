@@ -1,6 +1,7 @@
 package com.compiler.lexer;
 
 import com.compiler.lexer.dfa.DFA;
+import com.compiler.lexer.dfa.DfaState;
 
 /**
  * DfaSimulator
@@ -38,15 +39,16 @@ public class DfaSimulator {
      * @return True if the input is accepted by the DFA, false otherwise.
      */
     public boolean simulate(DFA dfa, String input) {
-       // TODO: Implement simulate
-       /*
-        Pseudocode:
-        1. Set currentState to DFA start state
-        2. For each character in input:
-            - Get next state using transition for character
-            - If no transition exists, return false
-        3. After processing all characters, return true if currentState is final
-       */
-       throw new UnsupportedOperationException("Not implemented");
+        if (dfa == null) return false;
+        if (input == null) input = "";
+
+        DfaState current = dfa.getStartState();
+        for (int i = 0; i < input.length(); i++) {
+            char a = input.charAt(i);
+            DfaState next = current.getTransition(a);
+            if (next == null) return false;
+            current = next;
+        }
+        return current.isFinal;
     }
 }

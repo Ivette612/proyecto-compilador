@@ -1,105 +1,63 @@
 package com.compiler.lexer.regex;
 
 /**
- * Utility class for regular expression parsing using the Shunting Yard
- * algorithm.
- * <p>
- * Provides methods to preprocess regular expressions by inserting explicit
- * concatenation operators, and to convert infix regular expressions to postfix
- * notation for easier parsing and NFA construction.
+ * ShuntingYard ------------ Inserta el operador de concatenación explícita '·'
+ * y convierte expresiones regulares infijas a postfijas (notación polaca
+ * inversa) usando Shunting–Yard.
+ *
+ * Cambios clave: - Se considera el espacio ' ' como OPERANDO literal, para que
+ * reglas como " +" (espacio uno o más) funcionen correctamente.
  */
-/**
- * Utility class for regular expression parsing using the Shunting Yard
- * algorithm.
- */
-public class ShuntingYard {
+public final class ShuntingYard {
+
+    private ShuntingYard() {
+        /* util class */ }
 
     /**
-     * Default constructor for ShuntingYard.
+     * Inserta el operador de concatenación explícita '·' donde corresponde. No
+     * modifica la semántica de la expresión.
+     *
+     * @param infixRegex expresión regular en notación infija
+     * @return cadena con concatenaciones explícitas
      */
-    public ShuntingYard() {
-        // No-op
-    }
+    public static String insertConcatenationOperator(String infixRegex) {
+        if (infixRegex == null || infixRegex.isEmpty()) {
+            return "";
+        }
 
-    /**
-     * Inserts the explicit concatenation operator ('·') into the regular
-     * expression according to standard rules. This makes implicit
-     * concatenations explicit, simplifying later parsing.
-    * Reglas (c1 actual, c2 siguiente) -> insertar '·' si:
-     * 1) operando c1 y operando c2           (ab -> a·b)
-     * 2) operando c1 y c2 == '('             (a( -> a·()
-     * 3) c1 == ')'    y operando c2          ()a -> )·a
-     * 4) unario c1    y operando c2          (*a -> *·a, +a, ?a)
-     * 5) c1 == ')'    y c2 == '('            ( )( -> )·(
-     * @param regex Input regular expression (may have implicit concatenation).
-     * @return Regular expression with explicit concatenation operators.
-     */
-     public static String insertConcatenationOperator(String regex) {
-        if (regex == null || regex.isEmpty()) return regex;
-        StringBuilder out = new StringBuilder(regex.length() * 2);
-        for (int i = 0; i < regex.length(); i++) {
-            char c1 = regex.charAt(i);
-            out.append(c1);
-            if (i + 1 < regex.length()) {
-                char c2 = regex.charAt(i + 1);
+        String s = infixRegex;
+        StringBuilder out = new StringBuilder(s.length() * 2);
 
-                boolean cond1 = isOperand(c1) && isOperand(c2);
-                boolean cond2 = isOperand(c1) && c2 == '(';
-                boolean cond3 = c1 == ')' && isOperand(c2);
-                boolean cond4 = isUnary(c1)   && isOperand(c2);
-                boolean cond5 = c1 == ')' && c2 == '(';
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            out.append(c);
 
-                if (cond1 || cond2 || cond3 || cond4 || cond5) {
-                    out.append('·'); // concatenación explícita
+            if (i + 1 < s.length()) {
+                char n = s.charAt(i + 1);
+                if (needsConcat(c, n)) {
+                    out.append('·'); // operador de concatenación explícita
                 }
             }
         }
         return out.toString();
     }
 
-
     /**
-     * Determines if the given character is an operand (not an operator or
-     * parenthesis).
+     * Convierte de infijo a postfijo. Primero inserta '·' y luego aplica
+     * Shunting–Yard.
      *
-     * @param c Character to evaluate.
-     * @return true if it is an operand, false otherwise.
+     * @param infixRegex expresión regular en infijo
+     * @return expresión regular en notación postfija
      */
-     private static boolean isOperand(char c) {
-        return !(c == '|' || c == '*' || c == '?' || c == '+' || c == '(' || c == ')' || c == '·');
-    }
-
-    private static boolean isUnary(char c) {
-        return (c == '*' || c == '+' || c == '?');
-    }
-
-    private static int precedence(char op) {
-        if (op == '*' || op == '+' || op == '?') return 3; // unarios
-        if (op == '·') return 2;                            // concatenación
-        if (op == '|') return 1;                            // unión
-        return -1;
-    }
-
-    private static boolean isLeftAssociative(char op) {
-        // Unarios se consideran de asociatividad a la derecha
-        return !(op == '*' || op == '+' || op == '?');
-    }
-
-    /**
-     * Converts an infix regular expression to postfix notation using the
-     * Shunting Yard algorithm. This is useful for constructing NFAs from
-     * regular expressions.
-     *
-     * @param infixRegex Regular expression in infix notation.
-     * @return Regular expression in postfix notation.
-     */
-      public static String toPostfix(String infixRegex) {
-        if (infixRegex == null || infixRegex.isEmpty()) return "";
+    public static String toPostfix(String infixRegex) {
+        if (infixRegex == null || infixRegex.isEmpty()) {
+            return "";
+        }
 
         // 1) Preprocesar: insertar concatenación explícita con '·'
         String s = insertConcatenationOperator(infixRegex);
 
-        // 2) Shunting–Yard con pila implementada con arreglo para evitar imports
+        // 2) Shunting–Yard con una pila simple (sin imports)
         StringBuilder output = new StringBuilder(s.length());
         char[] stack = new char[s.length()];
         int top = -1; // pila vacía
@@ -112,20 +70,20 @@ public class ShuntingYard {
             } else if (ch == '(') {
                 stack[++top] = ch;
             } else if (ch == ')') {
-                // desapilar hasta '('
+            
                 while (top >= 0 && stack[top] != '(') {
                     output.append(stack[top--]);
                 }
                 if (top < 0) {
                     throw new IllegalArgumentException("Unbalanced parentheses: missing '('");
                 }
-                top--; // descartar '('
+                top--; // descarta '('
             } else { // operador
                 int pCh = precedence(ch);
                 if (pCh < 0) {
                     throw new IllegalArgumentException("Unknown operator: " + ch);
                 }
-                // desapilar mientras top tiene mayor/igual precedencia (si izq-asoc)
+
                 while (top >= 0 && stack[top] != '(') {
                     char topOp = stack[top];
                     int pTop = precedence(topOp);
@@ -149,5 +107,48 @@ public class ShuntingYard {
         }
 
         return output.toString();
+    }
+
+    /* ===================== Helpers ===================== */
+    // ¿Debe insertarse concatenación entre a y b?
+    private static boolean needsConcat(char a, char b) {
+        boolean left = isOperand(a) || a == ')' || a == '*' || a == '+' || a == '?';
+        boolean right = isOperand(b) || b == '(';
+        return left && right;
+    }
+
+    // ¿Es un operador?
+    private static boolean isOperator(char c) {
+        return c == '|' || c == '·' || c == '*' || c == '+' || c == '?';
+    }
+
+   
+    private static boolean isOperand(char c) {
+        if (c == ' ') {
+            return true;                 
+
+                }return !isOperator(c) && c != '(' && c != ')';
+    }
+
+    // Precedencias: mayor valor = mayor precedencia
+    private static int precedence(char op) {
+        switch (op) {
+            case '*':
+            case '+':
+            case '?':
+                return 3;           // unarios (postfijo)
+            case '·':
+                return 2;           // concatenación explícita
+            case '|':
+                return 1;           // unión
+            default:
+                return -1;          // no es operador
+        }
+    }
+
+    // Asociatividad de operadores binarios
+    private static boolean isLeftAssociative(char op) {
+        // '·' y '|' suelen ser izquierdos; los unarios postfijo no usan este chequeo
+        return op == '·' || op == '|';
     }
 }

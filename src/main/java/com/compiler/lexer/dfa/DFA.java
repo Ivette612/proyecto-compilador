@@ -15,18 +15,38 @@ public class DFA {
     public final DfaState startState;
 
     /**
-     * A list of all states in the DFA.
+     * A list of all states in the DFA (nombre esperado por algunos clientes).
      */
     public final List<DfaState> allStates;
-    // Optionally, a Set<Character> for the alphabet could be added.
+
+    /**
+     * Alias del listado de estados (por compatibilidad con otros clientes).
+     */
+    public final List<DfaState> states;
 
     /**
      * Constructs a new DFA.
      * @param startState The starting state of the DFA.
-     * @param allStates  A list of all states in the DFA.
+     * @param states  A list of all states in the DFA.
      */
-    public DFA(DfaState startState, List<DfaState> allStates) {
-        //TODO: Implement DFA construction logic.
-        throw new UnsupportedOperationException("DFA construction is not supported yet.");
+    public DFA(DfaState startState, List<DfaState> states) {
+        this.startState = startState;
+        this.states = states;
+        this.allStates = states; // alias para compatibilidad (Main.java usa allStates)
+    }
+
+    /** Devuelve el estado inicial del DFA. */
+    public DfaState getStartState() {
+        return startState;
+    }
+
+    /** Devuelve la lista de estados del DFA (alias a allStates). */
+    public List<DfaState> getStates() {
+        return states;
+    }
+
+    /** (Opcional) Getter explícito si lo quieres usar en algún lado. */
+    public List<DfaState> getAllStates() {
+        return allStates;
     }
 }

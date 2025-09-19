@@ -1,94 +1,70 @@
 package com.compiler;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import com.compiler.lexer.DfaMinimizer;
-import com.compiler.lexer.DfaSimulator;
 import com.compiler.lexer.NfaToDfaConverter;
 import com.compiler.lexer.dfa.DFA;
 import com.compiler.lexer.dfa.DfaState;
 import com.compiler.lexer.nfa.NFA;
 import com.compiler.lexer.regex.RegexParser;
-/**
- * Main class for demonstrating regex to NFA, DFA conversion, minimization, and simulation.
- * This class builds an automaton from a regular expression, minimizes it, and tests several input strings.
- */
-/**
- * Main class for demonstrating regex to NFA, DFA conversion, minimization, and simulation.
- */
+
 public class Main {
-    /**
-     * Default constructor for Main.
-     */
-    public Main() {}
 
-    /**
-     * Entry point for the automaton demo.
-     * Steps:
-     * 1. Parse regex to NFA
-     * 2. Convert NFA to DFA
-     * 3. Minimize DFA
-     * 4. Simulate DFA with test strings
-     *
-     * @param args Command-line arguments (not used)
-     */
     public static void main(String[] args) {
-        // --- CONFIGURATION ---
-        String regex = "a(b|c)*";
-        Set<Character> alphabet = Set.of('a', 'b', 'c');
-        String[] testStrings = {"a", "ab", "ac", "abbc", "acb", "", "b", "abcabc"};
+        // Regex de ejemplo o desde args
+        String regex = (args != null && args.length > 0) ? args[0] : "a(b|c)*";
 
-        System.out.println("Testing Regex: " + regex + "\n");
-
-        // --- STEP 1: Regex -> NFA ---
+        // 1) Parseo a NFA
         RegexParser parser = new RegexParser();
         NFA nfa = parser.parse(regex);
-        nfa.endState.isFinal = true;
 
-        // --- STEP 2: NFA -> DFA ---
-        DFA dfa = NfaToDfaConverter.convertNfaToDfa(nfa, alphabet);
-        System.out.println("--- Original DFA ---");
-        visualizeDfa(dfa);
+        // 2) Alfabeto para la construcción NFA->DFA (extraído de la regex)
+        Set<Character> alphabetForNfaToDfa = extractAlphabetFromRegex(regex);
 
-        // --- STEP 3: DFA Minimization ---
-        DFA minimizedDfa = DfaMinimizer.minimizeDfa(dfa, alphabet);
-        System.out.println("--- Minimized DFA ---");
-        visualizeDfa(minimizedDfa);
+        // 3) NFA -> DFA
+        DFA dfa = NfaToDfaConverter.convertNfaToDfa(nfa, alphabetForNfaToDfa);
 
-        // --- STEP 4: DFA Simulation ---
-        DfaSimulator dfaSimulator = new DfaSimulator();
-        System.out.println("--- Testing Simulator with Minimized DFA ---");
+        // 4) Alfabeto real del DFA (desde sus transiciones)
+        Set<Character> dfaAlphabet = alphabetFromDfa(dfa);
 
-        for (String s : testStrings) {
-            boolean accepted = dfaSimulator.simulate(minimizedDfa, s);
-            System.out.println("String '" + s + "': " + (accepted ? "Accepted" : "Rejected"));
+        // 5) Minimización (usando la firma existente)
+        DFA minimized = DfaMinimizer.minimizeDfa(dfa, dfaAlphabet);
+
+        // 6) Salida simple
+        System.out.println("DFA states: " + dfa.getStates().size());
+        System.out.println("Min DFA states: " + minimized.getStates().size());
+    }
+
+    /** Extrae el alfabeto “visible” de la regex (ignora operadores y espacios). */
+    private static Set<Character> extractAlphabetFromRegex(String regex) {
+        Set<Character> a = new HashSet<>();
+        if (regex == null) return a;
+        for (int i = 0; i < regex.length(); i++) {
+            char c = regex.charAt(i);
+            if (isOperand(c)) a.add(c);
+        }
+        return a;
+    }
+
+    private static boolean isOperand(char c) {
+        switch (c) {
+            case '|': case '*': case '+': case '?': case '(': case ')': case '.':
+                return false;
+            default:
+                return !Character.isWhitespace(c);
         }
     }
 
-    /**
-     * Prints a textual representation of the DFA structure for debugging purposes.
-     * States and transitions are shown in a readable format.
-     *
-     * @param dfa The DFA to visualize.
-     */
-    public static void visualizeDfa(DFA dfa) {
-        System.out.println("Start State: D" + dfa.startState.id);
-        for (DfaState state : dfa.allStates) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("State D").append(state.id);
-            if (state.isFinal) {
-                sb.append(" (Final)");
-            }
-            sb.append(":");
-            // Sort transitions by character for consistent output
-            state.transitions.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .forEach(entry -> {
-                    sb.append("\n  --'").append(entry.getKey()).append("'--> D").append(entry.getValue().id);
-                });
-            System.out.println(sb.toString());
+    /** Deriva el alfabeto real del DFA a partir de sus transiciones. */
+    private static Set<Character> alphabetFromDfa(DFA dfa) {
+        Set<Character> a = new HashSet<>();
+        for (DfaState s : dfa.getStates()) {
+            Map<Character, DfaState> tr = s.getTransitions();
+            if (tr != null) a.addAll(tr.keySet());
         }
-        System.out.println("------------------------\n");
+        return a;
     }
 }

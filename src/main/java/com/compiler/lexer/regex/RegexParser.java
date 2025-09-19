@@ -5,16 +5,15 @@ import java.util.Stack;
 import com.compiler.lexer.nfa.NFA;
 
 /**
- * RegexParser
- * -----------
- * This class provides functionality to convert infix regular expressions into nondeterministic finite automata (NFA)
- * using Thompson's construction algorithm. It supports standard regex operators: concatenation (·), union (|),
- * Kleene star (*), optional (?), and plus (+). The conversion process uses the Shunting Yard algorithm to transform
- * infix regex into postfix notation, then builds the corresponding NFA.
+ * RegexParser ----------- This class provides functionality to convert infix
+ * regular expressions into nondeterministic finite automata (NFA) using
+ * Thompson's construction algorithm. It supports standard regex operators:
+ * concatenation (·), union (|), Kleene star (*), optional (?), and plus (+).
+ * The conversion process uses the Shunting Yard algorithm to transform infix
+ * regex into postfix notation, then builds the corresponding NFA.
  *
- * Features:
- * - Parses infix regular expressions and converts them to NFA.
- * - Supports regex operators: concatenation, union, Kleene star, optional, plus.
+ * Features: - Parses infix regular expressions and converts them to NFA. -
+ * Supports regex operators: concatenation, union, Kleene star, optional, plus.
  * - Implements Thompson's construction rules for NFA generation.
  *
  * Example usage:
@@ -27,12 +26,13 @@ import com.compiler.lexer.nfa.NFA;
  * Parses regular expressions and constructs NFAs using Thompson's construction.
  */
 public class RegexParser {
+
     /**
      * Default constructor for RegexParser.
      */
-        public RegexParser() {
-            // TODO: Implement constructor if needed
-        }
+    public RegexParser() {
+        // TODO: Implement constructor if needed
+    }
 
     /**
      * Converts an infix regular expression to an NFA.
@@ -62,7 +62,7 @@ public class RegexParser {
      * @param postfixRegex The regular expression in postfix notation.
      * @return The constructed NFA.
      */
-   private NFA buildNfaFromPostfix(String postfixRegex) {
+    private NFA buildNfaFromPostfix(String postfixRegex) {
         Stack<NFA> stack = new Stack<>();
 
         for (int i = 0; i < postfixRegex.length(); i++) {
@@ -99,12 +99,15 @@ public class RegexParser {
     }
 
     /**
-     * Handles the '?' operator (zero or one occurrence).
-     * Pops an NFA from the stack and creates a new NFA that accepts zero or one occurrence.
+     * Handles the '?' operator (zero or one occurrence). Pops an NFA from the
+     * stack and creates a new NFA that accepts zero or one occurrence.
+     *
      * @param stack The NFA stack.
      */
     private void handleOptional(Stack<NFA> stack) {
-        if (stack.isEmpty()) throw new IllegalStateException("Operator '?' with empty stack");
+        if (stack.isEmpty()) {
+            throw new IllegalStateException("Operator '?' with empty stack");
+        }
         NFA A = stack.pop();
 
         // Construcción de Thompson para A? = A | ε
@@ -124,12 +127,15 @@ public class RegexParser {
     }
 
     /**
-     * Handles the '+' operator (one or more occurrences).
-     * Pops an NFA from the stack and creates a new NFA that accepts one or more occurrences.
+     * Handles the '+' operator (one or more occurrences). Pops an NFA from the
+     * stack and creates a new NFA that accepts one or more occurrences.
+     *
      * @param stack The NFA stack.
      */
     private void handlePlus(Stack<NFA> stack) {
-        if (stack.isEmpty()) throw new IllegalStateException("Operator '+' with empty stack");
+        if (stack.isEmpty()) {
+            throw new IllegalStateException("Operator '+' with empty stack");
+        }
         NFA A = stack.pop();
 
         com.compiler.lexer.nfa.State s = new com.compiler.lexer.nfa.State();
@@ -146,9 +152,10 @@ public class RegexParser {
         f.isFinal = true;
         stack.push(new NFA(s, f));
     }
-    
+
     /**
      * Creates an NFA for a single character.
+     *
      * @param c The character to create an NFA for.
      * @return The constructed NFA.
      */
@@ -157,47 +164,70 @@ public class RegexParser {
     }
 
     /**
-     * Handles the concatenation operator (·).
-     * Pops two NFAs from the stack and connects them in sequence.
+     * Handles the concatenation operator (·). Pops two NFAs from the stack and
+     * connects them in sequence.
+     *
      * @param stack The NFA stack.
      */
     private void handleConcatenation(Stack<NFA> stack) {
-        if (stack.size() < 2) throw new IllegalStateException("Operator '·' needs two NFAs");
+        if (stack.size() < 2) {
+            throw new IllegalStateException("Operator '·' needs two NFAs");
+        }
         NFA B = stack.pop();
         NFA A = stack.pop();
         stack.push(NFA.concat(A, B));
     }
 
-
     /**
-     * Handles the union operator (|).
-     * Pops two NFAs from the stack and creates a new NFA that accepts either.
+     * Handles the union operator (|). Pops two NFAs from the stack and creates
+     * a new NFA that accepts either.
+     *
      * @param stack The NFA stack.
      */
     private void handleUnion(Stack<NFA> stack) {
-        if (stack.size() < 2) throw new IllegalStateException("Operator '|' needs two NFAs");
+        if (stack.size() < 2) {
+            throw new IllegalStateException("Operator '|' needs two NFAs");
+        }
         NFA B = stack.pop();
         NFA A = stack.pop();
         stack.push(NFA.union(A, B));
     }
 
     /**
-     * Handles the Kleene star operator (*).
-     * Pops an NFA from the stack and creates a new NFA that accepts zero or more repetitions.
+     * Handles the Kleene star operator (*). Pops an NFA from the stack and
+     * creates a new NFA that accepts zero or more repetitions.
+     *
      * @param stack The NFA stack.
      */
     private void handleKleeneStar(Stack<NFA> stack) {
-        if (stack.isEmpty()) throw new IllegalStateException("Operator '*' with empty stack");
+        if (stack.isEmpty()) {
+            throw new IllegalStateException("Operator '*' with empty stack");
+        }
         NFA A = stack.pop();
         stack.push(NFA.kleene(A));
     }
 
     /**
      * Checks if a character is an operand (not an operator).
+     *
      * @param c The character to check.
      * @return True if the character is an operand, false if it is an operator.
      */
     private boolean isOperand(char c) {
         return !(c == '|' || c == '·' || c == '*' || c == '+' || c == '?');
     }
+
+// Entrada pública desde INFIX (infija)
+    public static com.compiler.lexer.nfa.NFA buildFromInfix(String infix) {
+        String dotted = ShuntingYard.insertConcatenationOperator(infix);
+        String postfix = ShuntingYard.toPostfix(dotted);
+        return buildFromPostfix(postfix); // reutiliza el wrapper de abajo
+    }
+
+// Entrada pública desde POSTFIX (postfija)
+    public static com.compiler.lexer.nfa.NFA buildFromPostfix(String postfix) {
+        // Llama al método privado NO estático a través de una instancia
+        return new RegexParser().buildNfaFromPostfix(postfix);
+    }
+
 }
